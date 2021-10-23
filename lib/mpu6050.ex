@@ -1,6 +1,6 @@
 defmodule MPU6050 do
   @moduledoc """
-  Documentation for Mpu6050.
+  Documentation for MPU6050.
   """
   use Bitwise
   use GenServer
@@ -27,15 +27,15 @@ defmodule MPU6050 do
 
   def init(config) do
     addr = Keyword.get(config, :address, @i2c_addr)
-    i2c = KeyError.get(config, :ref, @r_i2c)
+    i2c = Keyword.get(config, :ref, @r_i2c)
 
     ref_i2c = I2C.open(i2c)
     state = %{ref: ref_i2c, addr: addr}
     {:ok, state}
   end
 
-  def read_all, do: GenServer.call(:read_all)
-  def read(sense), do: GenServer.call({:read, sense})
+  def read_all, do: GenServer.call(__MODULE__, :read_all)
+  def read(sense), do: GenServer.call(__MODULE__, {:read, sense})
 
   def handle_call(:read_all, _from, state) do
     ac = Enum.map(@ac, fn {axis, v} -> {axis, read_sense(v, state)} end)
@@ -49,19 +49,17 @@ defmodule MPU6050 do
   def handle_call({:read, sense}, _from, state) do
     case sense do
       :ac ->
-        resp = Enum.map(@ac, fn {axis, v} -> {axis, read_sense(v, state)} end)
+        {:reply, Enum.map(@ac, fn {axis, v} -> {axis, read_sense(v, state)} end), state}
 
       :dy ->
-        resp = Enum.map(@dy, fn {axis, v} -> {axis, read_sense(v, state)} end)
+        {:reply, Enum.map(@dy, fn {axis, v} -> {axis, read_sense(v, state)} end), state}
 
       :tmp ->
-        resp = read_sense(@temp, state)
+        {:reply, read_sense(@temp, state), state}
 
       _ ->
-        resp = :error
+        {:reply, :error, state}
     end
-
-    {:reply, resp, state}
   end
 
   def read_sense(value, state) do
